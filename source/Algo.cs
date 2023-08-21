@@ -8,6 +8,8 @@ namespace GeckoPhysics
 
     public static class Algo
     {
+        private static Fixed64 epsilon = 0.0001;
+
         internal static bool AABBAABB(in Transform thisActor, in Transform otherActor, AABBCollider thisColl, AABBCollider otherColl, out CollisionInfo info)
         {
             var thisPos = thisActor.Position + Rotate(thisColl.LocalPosition, thisActor.Rotation);
@@ -23,7 +25,7 @@ namespace GeckoPhysics
                 thisMin.Z <= otherMax.Z && thisMax.Z >= otherMin.Z)
             {
                 // AABB collision occurred
-                info.Depth = CalculateOverlapDepth(thisMin, thisMax, otherMin, otherMax);
+                info.Depth = CalculateOverlapDepth(thisMin, thisMax, otherMin, otherMax) + epsilon;
                 info.Normal = CalculateCollisionNormal(thisPos, otherPos);
                 return true;
             }
@@ -51,7 +53,7 @@ namespace GeckoPhysics
             if (distanceSquared <= otherColl.Radius * otherColl.Radius)
             {
                 // AABB-Sphere collision occurred
-                info.Depth = otherColl.Radius - Fixed64.Sqrt(distanceSquared);
+                info.Depth = otherColl.Radius - Fixed64.Sqrt(distanceSquared) + epsilon;
                 info.Normal = CalculateCollisionNormal(thisPos, otherPos);
                 return true;
             }
@@ -83,7 +85,7 @@ namespace GeckoPhysics
             if (distanceSquared <= sumRadii * sumRadii)
             {
                 // Sphere-Sphere collision occurred
-                info.Depth = sumRadii - Fixed64.Sqrt(distanceSquared);
+                info.Depth = sumRadii - Fixed64.Sqrt(distanceSquared) + epsilon;
                 info.Normal = CalculateCollisionNormal(thisPos, otherPos);
                 return true;
             }
@@ -92,31 +94,26 @@ namespace GeckoPhysics
             info.Normal = Vector3.Zero;
             return false;
         }
+
         private static Fixed64 CalculateOverlapDepth(Vector3 thisMin, Vector3 thisMax, Vector3 otherMin, Vector3 otherMax)
         {
-            Fixed64 xOverlap = Max(0, Min(thisMax.X - otherMin.X, otherMax.X - thisMin.X));
-            Fixed64 yOverlap = Max(0, Min(thisMax.Y - otherMin.Y, otherMax.Y - thisMin.Y));
-            Fixed64 zOverlap = Max(0, Min(thisMax.Z - otherMin.Z, otherMax.Z - thisMin.Z));
-            return Max(xOverlap, Max(yOverlap, zOverlap));
+            var xOverlap = Max(0, Min(thisMax.X - otherMin.X, otherMax.X - thisMin.X));
+            var yOverlap = Max(0, Min(thisMax.Y - otherMin.Y, otherMax.Y - thisMin.Y));
+            var zOverlap = Max(0, Min(thisMax.Z - otherMin.Z, otherMax.Z - thisMin.Z));
+            return Min(xOverlap, Min(yOverlap, zOverlap));
         }
 
         private static Vector3 CalculateCollisionNormal(Vector3 thisPos, Vector3 otherPos)
         {
-            Vector3 delta = otherPos - thisPos;
-            Fixed64 distanceSquared = Vector3.Dot(delta, delta);
+            var delta = otherPos - thisPos;
+            var distanceSquared = Vector3.Dot(delta, delta);
 
             // Define a small threshold to avoid division by very small numbers
-            Fixed64 epsilon = 0.0001;
 
             if (distanceSquared < epsilon * epsilon)
-            {
-                // Default collision normal (could be anything as long as it's normalized)
                 return Vector3.Up;
-            }
             else
-            {
                 return Vector3.Normalise(delta);
-            }
         }
     }
 }

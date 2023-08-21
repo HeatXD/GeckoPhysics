@@ -10,6 +10,7 @@ namespace GeckoPhysics
         public PhysicsWorld()
         {
             _actors = new List<Actor>();
+            _lastNotifications = new List<Actor>();
             _lastCollisions = new Dictionary<int, CollisionPair>();
             // amount it can hold without resizing for the first time
             _actors.Capacity = 25;
@@ -18,26 +19,25 @@ namespace GeckoPhysics
         public void Step(Fixed64 delta, int substeps = 1)
         {
             Fixed64 subdelta = delta / substeps;
+
             for (int i = 0; i < substeps; i++)
             {
                 ApplyMovement(subdelta);
                 CollectCollisions();
                 ResolveCollisions();
-                NotifyActors();
             }
+
+            NotifyActors();
         }
 
         private void NotifyActors()
         {
-            if (_lastCollisions.Count > 0)
-                Console.WriteLine("notifying-actors");
+            // FINISH
+            Console.WriteLine("notifying-actors");
         }
 
         private void ResolveCollisions()
         {
-            if (_lastCollisions.Count > 0)
-                Console.WriteLine("num-collisions: " + _lastCollisions.Count);
-
             foreach (var (_, collision) in _lastCollisions)
             {
                 var actorA = collision.ActorA;
@@ -56,8 +56,6 @@ namespace GeckoPhysics
                 if (!hasCommonMask)
                     continue;
 
-
-
                 // both dynamic? split the difference
                 if (actorA.GetActorType() == ActorType.Dynamic && actorB.GetActorType() == ActorType.Dynamic)
                 {
@@ -70,13 +68,13 @@ namespace GeckoPhysics
                 else if (actorA.GetActorType() == ActorType.Dynamic)
                 {
                     // if only a is dynamic we make them move the whole distance
-                    actorA.Transform.OldPosition += actorA.Transform.Position;
+                    actorA.Transform.OldPosition = actorA.Transform.Position;
                     actorA.Transform.Position += -info.Normal * info.Depth;
                 }
                 else if (actorB.GetActorType() == ActorType.Dynamic)
                 {
                     // if only b is dynamic we make them move the whole distance
-                    actorB.Transform.OldPosition += actorB.Transform.Position;
+                    actorB.Transform.OldPosition = actorB.Transform.Position;
                     actorB.Transform.Position += info.Normal * info.Depth;
                 }
             }
