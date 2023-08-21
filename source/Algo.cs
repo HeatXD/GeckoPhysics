@@ -111,7 +111,7 @@ namespace GeckoPhysics
             if (distanceSquared < epsilon * epsilon)
             {
                 // Default collision normal (could be anything as long as it's normalized)
-                return new Vector3(0, 1, 0);
+                return Vector3.Up;
             }
             else
             {
