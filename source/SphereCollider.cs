@@ -1,10 +1,8 @@
 ﻿using Abacus.Fixed64Precision;
-using System;
-using System.Collections.Generic;
 
 namespace GeckoPhysics
 {
-    internal class SphereCollider : Collider, IEquatable<SphereCollider>
+    public class SphereCollider : Collider, IEquatable<SphereCollider>
     {
         public Fixed64 Radius;
 
@@ -12,16 +10,18 @@ namespace GeckoPhysics
         {
             LocalPosition = position;
             Radius = radius;
-
+            Console.WriteLine(LocalPosition);
             SetActive(active);
         }
 
-        public override bool CheckCollision(ref Transform thisActor, ref Transform otherActor, ICollider other)
+        public override bool CheckCollision(ref Transform thisActor, ref Transform otherActor, ICollider other, out CollisionInfo info)
         {
+            info = default;
+
             return other.GetColliderType() switch
             {
-                ColliderType.Sphere => Algo.SphereSphere(thisActor, otherActor, this, (SphereCollider)other),
-                ColliderType.AABB => Algo.AABBSphere(otherActor, thisActor, (AABBCollider)other, this), 
+                ColliderType.Sphere => Algo.SphereSphere(thisActor, otherActor, this, (SphereCollider)other, out info),
+                ColliderType.AABB => Algo.AABBSphere(otherActor, thisActor, (AABBCollider)other, this, out info),
                 _ => false,
             };
         }

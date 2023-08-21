@@ -1,6 +1,4 @@
 using Abacus.Fixed64Precision;
-using System;
-using System.Collections.Generic;
 
 namespace GeckoPhysics
 {
@@ -23,6 +21,8 @@ namespace GeckoPhysics
 
             _actorType = actor;
             _active = enabled;
+
+            Transform.Rotation = Quaternion.Identity;
         }
 
         public ref List<Collider> GetColliders()
@@ -75,7 +75,7 @@ namespace GeckoPhysics
             mask |= 1 << index;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return Equals(obj as Actor);
         }

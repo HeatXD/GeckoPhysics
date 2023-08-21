@@ -6,7 +6,7 @@ namespace GeckoPhysics
 {
     public interface ICollider
     {
-        public bool CheckCollision(ref Transform thisActor, ref Transform otherActorPos, ICollider other);
+        public bool CheckCollision(ref Transform thisActor, ref Transform otherActor, ICollider other, out CollisionInfo info);
 
         public void SetActive(bool active);
 
@@ -56,7 +56,7 @@ namespace GeckoPhysics
             _active = active;
         }
 
-        public abstract bool CheckCollision(ref Transform thisActorPos, ref Transform otherActorPos, ICollider other);
+        public abstract bool CheckCollision(ref Transform thisActor, ref Transform otherActor, ICollider other, out CollisionInfo info);
 
         public static bool operator ==(Collider left, Collider right)
         {

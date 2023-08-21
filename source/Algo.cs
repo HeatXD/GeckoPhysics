@@ -6,51 +6,59 @@ namespace GeckoPhysics
     // https://developer.mozilla.org/en-US/docs/Games/Techniques/3D_collision_detection
     // https://www.jeffreythompson.org/collision-detection/circle-circle.php
 
-    internal static class Algo
+    public static class Algo
     {
-        internal static bool AABBAABB(in Transform thisActor, in Transform otherActor, AABBCollider thisColl, AABBCollider otherColl)
+        internal static bool AABBAABB(in Transform thisActor, in Transform otherActor, AABBCollider thisColl, AABBCollider otherColl, out CollisionInfo info)
         {
             var thisPos = thisActor.Position + Rotate(thisColl.LocalPosition, thisActor.Rotation);
             var otherPos = otherActor.Position + Rotate(otherColl.LocalPosition, otherActor.Rotation);
 
-            var thisMax = thisPos + thisColl.Max;
-            var thisMin = thisPos + thisColl.Min;
-            var otherMax = otherPos + otherColl.Max;
-            var otherMin = otherPos + otherColl.Min;
+            var thisMin = thisPos - thisColl.HalfExtents;
+            var thisMax = thisPos + thisColl.HalfExtents;
+            var otherMin = otherPos - otherColl.HalfExtents;
+            var otherMax = otherPos + otherColl.HalfExtents;
 
-            if (thisMin.X > otherMax.X || thisMax.X < otherMin.X) return false; // No overlap along X-axis
-            if (thisMin.Y > otherMax.Y || thisMax.Y < otherMin.Y) return false; // No overlap along Y-axis
-            if (thisMin.Z > otherMax.Z || thisMax.Z < otherMin.Z) return false; // No overlap along Z-axis
+            if (thisMin.X <= otherMax.X && thisMax.X >= otherMin.X &&
+                thisMin.Y <= otherMax.Y && thisMax.Y >= otherMin.Y &&
+                thisMin.Z <= otherMax.Z && thisMax.Z >= otherMin.Z)
+            {
+                // AABB collision occurred
+                info.Depth = CalculateOverlapDepth(thisMin, thisMax, otherMin, otherMax);
+                info.Normal = CalculateCollisionNormal(thisPos, otherPos);
+                return true;
+            }
 
-            return true;
+            info.Depth = 0;
+            info.Normal = Vector3.Zero;
+            return false;
         }
 
-        private static Vector3 Rotate(Vector3 point, Quaternion rotation)
+        public static Vector3 Rotate(Vector3 point, Quaternion rotation)
         {
             var newPoint = rotation * Quaternion.CreateFromYawPitchRoll(point.Y, point.X, point.Z) * Quaternion.Conjugate(rotation);
-            return newPoint.ToYawPitchRoll();
+            return rotation != Quaternion.Identity ? newPoint.ToYawPitchRoll() : point;
         }
 
-        internal static bool AABBSphere(in Transform thisActor, in Transform otherActor, AABBCollider thisColl, SphereCollider otherColl)
+        internal static bool AABBSphere(in Transform thisActor, in Transform otherActor, AABBCollider thisColl, SphereCollider otherColl, out CollisionInfo info)
         {
             var thisPos = thisActor.Position + Rotate(thisColl.LocalPosition, thisActor.Rotation);
             var otherPos = otherActor.Position + Rotate(otherColl.LocalPosition, otherActor.Rotation);
 
-            var thisMax = thisPos + thisColl.Max;
-            var thisMin = thisPos + thisColl.Min;
+            var closestPoint = Vector3.Clamp(otherPos, thisPos - thisColl.HalfExtents, thisPos + thisColl.HalfExtents);
+            var delta = otherPos - closestPoint;
+            var distanceSquared = Vector3.Dot(delta, delta);
 
-            Fixed64 sqrDist = 0;
+            if (distanceSquared <= otherColl.Radius * otherColl.Radius)
+            {
+                // AABB-Sphere collision occurred
+                info.Depth = otherColl.Radius - Fixed64.Sqrt(distanceSquared);
+                info.Normal = CalculateCollisionNormal(thisPos, otherPos);
+                return true;
+            }
 
-            Fixed64 distX = Max(0, Max(thisMin.X - otherPos.X, otherPos.X - thisMax.X));
-            sqrDist += distX * distX;
-
-            Fixed64 distY = Max(0, Max(thisMin.Y - otherPos.Y, otherPos.Y - thisMax.Y));
-            sqrDist += distY * distY;
-
-            Fixed64 distZ = Max(0, Max(thisMin.Z - otherPos.Z, otherPos.Z - thisMax.Z));
-            sqrDist += distZ * distZ;
-
-            return sqrDist < (otherColl.Radius * otherColl.Radius);
+            info.Depth = 0;
+            info.Normal = Vector3.Zero;
+            return false;
         }
 
         private static Fixed64 Max(Fixed64 a, Fixed64 b)
@@ -58,24 +66,57 @@ namespace GeckoPhysics
             return a >= b ? a : b;
         }
 
-        internal static bool SphereSphere(in Transform thisActor, in Transform otherActor, SphereCollider thisColl, SphereCollider otherColl)
+        private static Fixed64 Min(Fixed64 a, Fixed64 b)
+        {
+            return a <= b ? a : b;
+        }
+
+        internal static bool SphereSphere(in Transform thisActor, in Transform otherActor, SphereCollider thisColl, SphereCollider otherColl, out CollisionInfo info)
         {
             var thisPos = thisActor.Position + Rotate(thisColl.LocalPosition, thisActor.Rotation);
             var otherPos = otherActor.Position + Rotate(otherColl.LocalPosition, otherActor.Rotation);
 
-            var distX = thisPos.X - otherPos.X;
-            var distY = thisPos.Y - otherPos.Y;
-            var distZ = thisPos.Z - otherPos.Z;
+            var delta = otherPos - thisPos;
+            var distanceSquared = Vector3.Dot(delta, delta);
+            var sumRadii = thisColl.Radius + otherColl.Radius;
 
-            // Instead of calculating the square root of the squared distance,
-            // you can compare the squared distance directly to the sum of the squared radii.
-            // This can save computational resources since square root calculations are relatively expensive.
-            var sqrDistance = (distX * distX) + (distY * distY) + (distZ * distZ);
-            var sqrRadiiSum = (thisColl.Radius + otherColl.Radius) * (thisColl.Radius + otherColl.Radius);
+            if (distanceSquared <= sumRadii * sumRadii)
+            {
+                // Sphere-Sphere collision occurred
+                info.Depth = sumRadii - Fixed64.Sqrt(distanceSquared);
+                info.Normal = CalculateCollisionNormal(thisPos, otherPos);
+                return true;
+            }
 
-            return sqrDistance < sqrRadiiSum;
+            info.Depth = 0;
+            info.Normal = Vector3.Zero;
+            return false;
+        }
+        private static Fixed64 CalculateOverlapDepth(Vector3 thisMin, Vector3 thisMax, Vector3 otherMin, Vector3 otherMax)
+        {
+            Fixed64 xOverlap = Max(0, Min(thisMax.X - otherMin.X, otherMax.X - thisMin.X));
+            Fixed64 yOverlap = Max(0, Min(thisMax.Y - otherMin.Y, otherMax.Y - thisMin.Y));
+            Fixed64 zOverlap = Max(0, Min(thisMax.Z - otherMin.Z, otherMax.Z - thisMin.Z));
+            return Max(xOverlap, Max(yOverlap, zOverlap));
+        }
+
+        private static Vector3 CalculateCollisionNormal(Vector3 thisPos, Vector3 otherPos)
+        {
+            Vector3 delta = otherPos - thisPos;
+            Fixed64 distanceSquared = Vector3.Dot(delta, delta);
+
+            // Define a small threshold to avoid division by very small numbers
+            Fixed64 epsilon = 0.0001;
+
+            if (distanceSquared < epsilon * epsilon)
+            {
+                // Default collision normal (could be anything as long as it's normalized)
+                return new Vector3(0, 1, 0);
+            }
+            else
+            {
+                return Vector3.Normalise(delta);
+            }
         }
     }
-
-
 }

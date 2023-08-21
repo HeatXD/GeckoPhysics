@@ -1,12 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace GeckoPhysics
+﻿namespace GeckoPhysics
 {
     internal class CollisionPair : IEquatable<CollisionPair>
     {
         public Actor ActorA;
         public Actor ActorB;
+        public CollisionInfo Info;
 
         public CollisionPair(ref Actor actorA, ref Actor actorB)
         {
